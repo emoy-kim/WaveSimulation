@@ -56,7 +56,6 @@ class RendererGL
    void setWaveObject();
    void drawWaveObject();
    void render();
-   void update();
 
 
 public:

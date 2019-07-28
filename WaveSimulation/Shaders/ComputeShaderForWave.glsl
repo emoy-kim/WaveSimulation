@@ -27,8 +27,7 @@ void main()
    uint index = gl_GlobalInvocationID.y * points.x + gl_GlobalInvocationID.x;
 
    float updated_height = 2.0f * Pn[index].y - Pn_prev[index].y;
-   vec3 estimated_normal = vec3(0.0f, 0.0f, 0.0f);
-
+   
    if (0 < gl_GlobalInvocationID.x) {
       updated_height += WaveFactor * Pn[index - 1].y;
    }

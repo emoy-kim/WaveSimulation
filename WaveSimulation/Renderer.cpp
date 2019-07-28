@@ -2,7 +2,7 @@
 
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() : 
-   Window( nullptr ), ClickedPoint( -1.0f, -1.0f ), WaveTargetIndex( 0 ), WaveFactor( 3.0f ),
+   Window( nullptr ), ClickedPoint( -1.0f, -1.0f ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
    WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 )
 {
    Renderer = this;
@@ -54,7 +54,10 @@ void RendererGL::initialize()
       "Shaders/VertexShaderForObject.glsl",
       "Shaders/FragmentShaderForObject.glsl"
    );
-   ObjectShader.setComputeShaders( { "Shaders/ComputeShaderForWave.glsl" } );
+   ObjectShader.setComputeShaders( { 
+      "Shaders/ComputeShaderForWave.glsl",
+      "Shaders/ComputeShaderForWaveNormal.glsl"
+   } );
 }
 
 void RendererGL::error(int error, const char* description) const
@@ -202,15 +205,15 @@ void RendererGL::registerCallbacks() const
 
 void RendererGL::setLights()
 {  
-   vec4 light_position(10.0f, 10.0f, -10.0f, 1.0f);
-   vec4 ambient_color(0.3f, 0.3f, 0.3f, 1.0f);
-   vec4 diffuse_color(0.7f, 0.7f, 0.7f, 1.0f);
+   vec4 light_position(2.0f, 150.0f, 2.0f, 1.0f);
+   vec4 ambient_color(0.9f, 0.9f, 0.9f, 1.0f);
+   vec4 diffuse_color(0.9f, 0.9f, 0.9f, 1.0f);
    vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
-   //Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
+   Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
 
-   light_position = vec4(3.0f, 10.0f, 3.0f, 1.0f);
-   ambient_color = vec4(0.2f, 0.2f, 0.2f, 1.0f);
-   diffuse_color = vec4(0.9f, 0.5f, 0.1f, 1.0f);
+   light_position = vec4(2.5f, 100.0f, 2.5f, 1.0f);
+   ambient_color = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+   diffuse_color = vec4(0.0f, 0.47f, 0.75f, 1.0f);
    specular_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
    vec3 spotlight_direction(0.0f, -1.0f, 0.0f);
    float spotlight_exponent = 128;
@@ -240,9 +243,9 @@ void RendererGL::setWaveObject()
    const auto mid_x = static_cast<float>(WavePointNumSize.x >> 1);
    const auto mid_y = static_cast<float>(WavePointNumSize.y >> 1);
    
-   const float initial_radius_squared = 64.0f;
+   const float initial_radius_squared = 81.0f;
    const float initial_wave_factor = glm::pi<float>() / initial_radius_squared;
-   const float initial_wave_height = 0.7f;
+   const float initial_wave_height = 0.5f;
 
    vector<vec3> wave_vertices, wave_normals;
    vector<vec2> wave_textures;
@@ -279,7 +282,7 @@ void RendererGL::setWaveObject()
    const vec4 diffuse_color = { 0.0f, 0.47f, 0.75f, 1.0f };
    WaveObject.setDiffuseReflectionColor( diffuse_color );
 
-   const float delta_time = 0.003f;
+   const float delta_time = 0.0007f;
    WaveFactor = WaveFactor * WaveFactor * delta_time * delta_time / dx;
 }
 
@@ -295,6 +298,11 @@ void RendererGL::drawWaveObject()
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, WaveObject.ShaderStorageBufferObjects[(WaveTargetIndex + 1) % 3] );
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, WaveObject.ShaderStorageBufferObjects[(WaveTargetIndex + 2) % 3] );
    WaveTargetIndex = (WaveTargetIndex + 1) % 3;
+
+   glUseProgram( ObjectShader.ComputeShaderPrograms[1] );
+
+   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
+   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
 
    glUseProgram( ObjectShader.ShaderProgram );
 
@@ -329,9 +337,17 @@ void RendererGL::render()
    glUseProgram( 0 );
 }
 
-void RendererGL::update()
+void captureFenceMask()
 {
-   
+   Mat screen(1080, 1920,CV_8UC3);
+   glPixelStorei( GL_PACK_ALIGNMENT, screen.step & 3 ? 1 : 4 );
+   glReadBuffer( GL_BACK );
+   glReadPixels( 0, 0, screen.cols, screen.rows, GL_BGR, GL_UNSIGNED_BYTE, screen.data );
+   flip( screen, screen, 0 );
+
+   static int i = 1;
+   imwrite("result/screen"+to_string(i)+".png", screen);
+   i++;
 }
 
 void RendererGL::play()
@@ -343,19 +359,19 @@ void RendererGL::play()
    ObjectShader.setUniformLocations( Lights.TotalLightNum );
    ObjectShader.addUniformLocation( ObjectShader.ComputeShaderPrograms[0], "WaveFactor" );
 
-   const double update_time = 0.1;
+   const double update_time = 1.0;
    double last = glfwGetTime(), time_delta = 0.0;
    while (!glfwWindowShouldClose( Window )) {
       const double now = glfwGetTime();
       time_delta += now - last;
       last = now;
       if (time_delta >= update_time) {
-         update();
+         captureFenceMask();
          time_delta -= update_time;
       }
 
       render();
-
+      
       glfwPollEvents();
       glfwSwapBuffers( Window );
    }
