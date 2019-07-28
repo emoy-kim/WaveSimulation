@@ -113,6 +113,6 @@ void main()
 {
    final_color = texture( BaseTexture, tex_coord );
    if (UseLight != 0) {
-      final_color = calculateLightingEquation();
+      final_color *= calculateLightingEquation();
    }
 }

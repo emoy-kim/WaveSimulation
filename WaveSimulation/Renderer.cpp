@@ -54,7 +54,10 @@ void RendererGL::initialize()
       "Shaders/VertexShaderForObject.glsl",
       "Shaders/FragmentShaderForObject.glsl"
    );
-   ObjectShader.setComputeShaders( { "Shaders/ComputeShaderForWave.glsl" } );
+   ObjectShader.setComputeShaders( { 
+      "Shaders/ComputeShaderForWave.glsl",
+      "Shaders/ComputeShaderForWaveNormal.glsl"
+   } );
 }
 
 void RendererGL::error(int error, const char* description) const
@@ -206,7 +209,7 @@ void RendererGL::setLights()
    vec4 ambient_color(0.3f, 0.3f, 0.3f, 1.0f);
    vec4 diffuse_color(0.7f, 0.7f, 0.7f, 1.0f);
    vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
-   //Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
+   Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
 
    light_position = vec4(3.0f, 10.0f, 3.0f, 1.0f);
    ambient_color = vec4(0.2f, 0.2f, 0.2f, 1.0f);
@@ -295,6 +298,11 @@ void RendererGL::drawWaveObject()
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, WaveObject.ShaderStorageBufferObjects[(WaveTargetIndex + 1) % 3] );
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, WaveObject.ShaderStorageBufferObjects[(WaveTargetIndex + 2) % 3] );
    WaveTargetIndex = (WaveTargetIndex + 1) % 3;
+
+   glUseProgram( ObjectShader.ComputeShaderPrograms[1] );
+
+   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
+   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
 
    glUseProgram( ObjectShader.ShaderProgram );
 

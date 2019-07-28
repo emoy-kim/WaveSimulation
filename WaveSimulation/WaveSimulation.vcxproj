@@ -160,6 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\ComputeShaderForWave.glsl" />
+    <None Include="Shaders\ComputeShaderForWaveNormal.glsl" />
     <None Include="Shaders\FragmentShaderForObject.glsl" />
     <None Include="Shaders\VertexShaderForObject.glsl" />
   </ItemGroup>

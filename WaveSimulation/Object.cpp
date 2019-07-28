@@ -418,9 +418,9 @@ void ObjectGL::prepareShaderStorageBuffer()
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, ShaderStorageBufferObjects[0] );
    glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
 
-   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ShaderStorageBufferObjects[1]);
-   glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, ShaderStorageBufferObjects[1] );
+   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
    
-   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ShaderStorageBufferObjects[2]);
-   glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), nullptr, GL_DYNAMIC_DRAW );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, ShaderStorageBufferObjects[2] );
+   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), nullptr, GL_DYNAMIC_DRAW );
 }

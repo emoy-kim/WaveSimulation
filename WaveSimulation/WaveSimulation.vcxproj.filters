@@ -64,5 +64,8 @@
     <None Include="Shaders\ComputeShaderForWave.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Shaders\ComputeShaderForWaveNormal.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
