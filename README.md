@@ -1,10 +1,10 @@
 # WaveSimulation
 
+This is an example of using a compute shader.
+
 ![watersimulation](https://user-images.githubusercontent.com/17864157/62009307-cfbe2080-b198-11e9-8432-5c816884edf6.gif)
 
 
-
-This is an example of using a compute shader.
 
 
 
