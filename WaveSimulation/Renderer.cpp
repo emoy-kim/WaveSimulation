@@ -337,19 +337,6 @@ void RendererGL::render()
    glUseProgram( 0 );
 }
 
-void captureFenceMask()
-{
-   Mat screen(1080, 1920,CV_8UC3);
-   glPixelStorei( GL_PACK_ALIGNMENT, screen.step & 3 ? 1 : 4 );
-   glReadBuffer( GL_BACK );
-   glReadPixels( 0, 0, screen.cols, screen.rows, GL_BGR, GL_UNSIGNED_BYTE, screen.data );
-   flip( screen, screen, 0 );
-
-   static int i = 1;
-   imwrite("result/screen"+to_string(i)+".png", screen);
-   i++;
-}
-
 void RendererGL::play()
 {
    if (glfwWindowShouldClose( Window )) initialize();
@@ -359,17 +346,7 @@ void RendererGL::play()
    ObjectShader.setUniformLocations( Lights.TotalLightNum );
    ObjectShader.addUniformLocation( ObjectShader.ComputeShaderPrograms[0], "WaveFactor" );
 
-   const double update_time = 1.0;
-   double last = glfwGetTime(), time_delta = 0.0;
    while (!glfwWindowShouldClose( Window )) {
-      const double now = glfwGetTime();
-      time_delta += now - last;
-      last = now;
-      if (time_delta >= update_time) {
-         captureFenceMask();
-         time_delta -= update_time;
-      }
-
       render();
       
       glfwPollEvents();
