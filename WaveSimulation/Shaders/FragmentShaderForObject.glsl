@@ -92,12 +92,12 @@ vec4 calculateLightingEquation()
       else light_vector = normalize( light_position_in_ec.xyz );
    
       if (final_effect_factor <= zero) continue;
-
+      
       vec4 local_color = Lights[i].AmbientColor * Material.AmbientColor;
-
+      
       float diffuse_intensity = max( dot( normal_in_ec, light_vector ), zero );
       local_color += diffuse_intensity * Lights[i].DiffuseColor * Material.DiffuseColor;
-
+      
       vec3 halfway_vector = normalize( light_vector - normalize( position_in_ec ) );
       float specular_intensity = max( dot( normal_in_ec, halfway_vector ), zero );
       local_color += 
@@ -113,6 +113,6 @@ void main()
 {
    final_color = texture( BaseTexture, tex_coord );
    if (UseLight != 0) {
-      final_color *= calculateLightingEquation();
+      final_color = calculateLightingEquation();
    }
 }

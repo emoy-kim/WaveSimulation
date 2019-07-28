@@ -408,10 +408,9 @@ void ObjectGL::transferUniformsToShader(ShaderGL& shader)
    glUniform1i( shader.Location.Texture, TextureID );
 }
 
-void ObjectGL::prepareShaderStorageBuffer(vector<vec3>& points)
+void ObjectGL::prepareShaderStorageBuffer()
 {
    ShaderStorageBufferObjects.resize( 3 );
-   //glGenBuffers( 3, ShaderStorageBufferObjects.data() );
    glGenBuffers( 1, &ShaderStorageBufferObjects[1] );
    glGenBuffers( 1, &ShaderStorageBufferObjects[2] );
 

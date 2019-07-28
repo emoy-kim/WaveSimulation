@@ -153,7 +153,7 @@ public:
    );
 
    void transferUniformsToShader(ShaderGL& shader);
-   void prepareShaderStorageBuffer(vector<vec3>& points);
+   void prepareShaderStorageBuffer();
    
    template<typename T>
    void addBufferObject(const GLenum& target, const vector<T>& data, const GLenum& usage)

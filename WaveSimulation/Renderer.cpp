@@ -2,8 +2,8 @@
 
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() : 
-   Window( nullptr ), ClickedPoint( -1.0f, -1.0f ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
-   WavePointNumSize( 100, 100 ), WaveGridSize( 4, 4 )
+   Window( nullptr ), ClickedPoint( -1.0f, -1.0f ), WaveTargetIndex( 0 ), WaveFactor( 3.0f ),
+   WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 )
 {
    Renderer = this;
 
@@ -202,17 +202,17 @@ void RendererGL::registerCallbacks() const
 
 void RendererGL::setLights()
 {  
-   vec4 light_position(-10.0f, 10.0f, 10.0f, 1.0f);
+   vec4 light_position(10.0f, 10.0f, -10.0f, 1.0f);
    vec4 ambient_color(0.3f, 0.3f, 0.3f, 1.0f);
    vec4 diffuse_color(0.7f, 0.7f, 0.7f, 1.0f);
    vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
-   Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
+   //Lights.addLight( light_position, ambient_color, diffuse_color, specular_color );
 
-   light_position = vec4(0.0f, 35.0f, 10.0f, 1.0f);
+   light_position = vec4(3.0f, 10.0f, 3.0f, 1.0f);
    ambient_color = vec4(0.2f, 0.2f, 0.2f, 1.0f);
    diffuse_color = vec4(0.9f, 0.5f, 0.1f, 1.0f);
    specular_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-   vec3 spotlight_direction(0.0f, -1.0f, -1.5f);
+   vec3 spotlight_direction(0.0f, -1.0f, 0.0f);
    float spotlight_exponent = 128;
    float spotlight_cutoff_angle_in_degree = 7.0f;
    Lights.addLight( 
@@ -242,9 +242,9 @@ void RendererGL::setWaveObject()
    
    const float initial_radius_squared = 64.0f;
    const float initial_wave_factor = glm::pi<float>() / initial_radius_squared;
-   const float initial_wave_height = 0.3f;
+   const float initial_wave_height = 0.7f;
 
-   vector<vec3> wave_vertices;
+   vector<vec3> wave_vertices, wave_normals;
    vector<vec2> wave_textures;
    for (int j = 0; j < WavePointNumSize.y; ++j) {
       const auto y = static_cast<float>(j);
@@ -258,14 +258,14 @@ void RendererGL::setWaveObject()
             wave_vertices.back().y = initial_wave_height * (cos( theta ) + 1.0f);
          }
 
+         wave_normals.emplace_back( 0.0f, 0.0f, 0.0f );
          wave_textures.emplace_back( x * ds, y * dt );
       }
    }
+   
+   WaveObject.setObject( GL_TRIANGLE_STRIP, wave_vertices, wave_normals, wave_textures, "water.png" );
 
-   //vector<vec3> wave_normals;
-   WaveObject.setObject( GL_TRIANGLE_STRIP, wave_vertices, wave_textures, "water.png" );
-
-   WaveObject.prepareShaderStorageBuffer( wave_vertices );
+   WaveObject.prepareShaderStorageBuffer();
    
    vector<GLuint> indices;
    for (int j = 0; j < WavePointNumSize.y - 1; ++j) {
@@ -314,7 +314,7 @@ void RendererGL::drawWaveObject()
          WaveObject.DrawMode, 
          WavePointNumSize.x * 2, 
          GL_UNSIGNED_INT, 
-         reinterpret_cast<GLvoid *>(j * WavePointNumSize.x * 2 * sizeof(GLuint))
+         reinterpret_cast<GLvoid *>(j * WavePointNumSize.x * 2 * sizeof GLuint)
       );
    }
 }

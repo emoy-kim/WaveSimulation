@@ -1,7 +1,7 @@
 #include "Camera.h"
 
 CameraGL::CameraGL() : 
-   CameraGL(vec3(8.0f, 3.0f, 8.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f))
+   CameraGL(vec3(9.0f, 3.0f, 9.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f))
 {   
 }
 
