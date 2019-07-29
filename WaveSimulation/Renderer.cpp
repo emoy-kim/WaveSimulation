@@ -2,7 +2,7 @@
 
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() : 
-   Window( nullptr ), ClickedPoint( -1.0f, -1.0f ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
+   Window( nullptr ), ClickedPoint( -1, -1 ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
    WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 )
 {
    Renderer = this;
@@ -135,10 +135,19 @@ void RendererGL::keyboardWrapper(GLFWwindow* window, int key, int scancode, int 
 void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
 {
    if (MainCamera.getMovingState()) {
-      const int dx = static_cast<int>(round( xpos ) - ClickedPoint.x);
-      const int dy = static_cast<int>(round( ypos ) - ClickedPoint.y);
-      MainCamera.pitch( dy );
-      MainCamera.yaw( dx );
+      const auto x = static_cast<int>(round( xpos ));
+      const auto y = static_cast<int>(round( ypos ));
+      const int dx = x - ClickedPoint.x;
+      const int dy = y - ClickedPoint.y;
+      MainCamera.moveForward( -dy );
+      MainCamera.rotateAroundWorldY( -dx );
+
+      if (glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS) {
+         MainCamera.pitch( -dy );
+      }
+
+      ClickedPoint.x = x;
+      ClickedPoint.y = y;
    }
 }
 
@@ -154,8 +163,8 @@ void RendererGL::mouse(GLFWwindow* window, int button, int action, int mods)
       if (moving_state) {
          double x, y;
          glfwGetCursorPos( window, &x, &y );
-         ClickedPoint.x = static_cast<float>(round( x ));
-         ClickedPoint.y = static_cast<float>(round( y ));
+         ClickedPoint.x = static_cast<int>(round( x ));
+         ClickedPoint.y = static_cast<int>(round( y ));
       }
       MainCamera.setMovingState( moving_state );
    }

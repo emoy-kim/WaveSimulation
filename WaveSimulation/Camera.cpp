@@ -13,7 +13,7 @@ CameraGL::CameraGL(
    float near_plane,
    float far_plane
 ) : 
-   ZoomSensitivity( 1.0f ), MoveSensitivity( 0.5f ), RotationSensitivity( 0.01f ), IsMoving( false ),
+   ZoomSensitivity( 1.0f ), MoveSensitivity( 0.05f ), RotationSensitivity( 0.005f ), IsMoving( false ),
    AspectRatio( 0.0f ), InitFOV( fov ), NearPlane( near_plane ), FarPlane( far_plane ), 
    InitCamPos( cam_position ), InitRefPos( view_reference_position ), InitUpVec( view_up_vector ), 
    FOV( fov ), CamPos( cam_position ),
@@ -42,56 +42,63 @@ void CameraGL::updateCamera()
 void CameraGL::pitch(const int& angle)
 {
    const vec3 u_axis(ViewMatrix[0][0], ViewMatrix[1][0], ViewMatrix[2][0]);
-   ViewMatrix = glm::rotate( ViewMatrix, static_cast<float>(angle) * RotationSensitivity, u_axis );
+   ViewMatrix = glm::rotate( ViewMatrix, static_cast<float>(-angle) * RotationSensitivity, u_axis );
    updateCamera();
 }
 
 void CameraGL::yaw(const int& angle)
 {
    const vec3 v_axis(ViewMatrix[0][1], ViewMatrix[1][1], ViewMatrix[2][1]);
-   ViewMatrix = glm::rotate( ViewMatrix, static_cast<float>(angle) * RotationSensitivity, v_axis );
+   ViewMatrix = glm::rotate( ViewMatrix, static_cast<float>(-angle) * RotationSensitivity, v_axis );
    updateCamera();
 }
 
-void CameraGL::moveForward()
+void CameraGL::rotateAroundWorldY(const int& angle)
+{
+   const vec3 world_y(0.0f, 1.0f, 0.0f);
+   ViewMatrix = glm::rotate( mat4(1.0f), static_cast<float>(-angle) * RotationSensitivity, world_y ) * ViewMatrix;
+   updateCamera();
+}
+
+void CameraGL::moveForward(const int& delta)
 {
    const vec3 n_axis(ViewMatrix[0][2], ViewMatrix[1][2], ViewMatrix[2][2]);
-   ViewMatrix = translate( ViewMatrix, MoveSensitivity * n_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) *  -n_axis );
    updateCamera();
 }
 
-void CameraGL::moveBackward()
+void CameraGL::moveBackward(const int& delta)
 {
    const vec3 n_axis(ViewMatrix[0][2], ViewMatrix[1][2], ViewMatrix[2][2]);
-   ViewMatrix = translate( ViewMatrix, -MoveSensitivity * n_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) * n_axis );
    updateCamera();
 }
 
-void CameraGL::moveLeft()
+void CameraGL::moveLeft(const int& delta)
 {
    const vec3 u_axis(ViewMatrix[0][0], ViewMatrix[1][0], ViewMatrix[2][0]);
-   ViewMatrix = translate( ViewMatrix, MoveSensitivity * u_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) * -u_axis );
    updateCamera();
 }
 
-void CameraGL::moveRight()
+void CameraGL::moveRight(const int& delta)
 {
    const vec3 u_axis(ViewMatrix[0][0], ViewMatrix[1][0], ViewMatrix[2][0]);
-   ViewMatrix = translate( ViewMatrix, -MoveSensitivity * u_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) * u_axis );
    updateCamera();
 }
 
-void CameraGL::moveUp()
+void CameraGL::moveUp(const int& delta)
 {
    const vec3 v_axis(ViewMatrix[0][1], ViewMatrix[1][1], ViewMatrix[2][1]);
-   ViewMatrix = translate( ViewMatrix, -MoveSensitivity * v_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) * v_axis );
    updateCamera();
 }
 
-void CameraGL::moveDown()
+void CameraGL::moveDown(const int& delta)
 {
    const vec3 v_axis(ViewMatrix[0][1], ViewMatrix[1][1], ViewMatrix[2][1]);
-   ViewMatrix = translate( ViewMatrix, MoveSensitivity * v_axis );
+   ViewMatrix = translate( ViewMatrix, MoveSensitivity * static_cast<float>(-delta) * -v_axis );
    updateCamera();
 }
 

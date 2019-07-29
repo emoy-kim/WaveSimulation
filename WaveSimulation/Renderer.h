@@ -19,7 +19,7 @@ class RendererGL
    static RendererGL* Renderer;
    GLFWwindow* Window;
 
-   vec2 ClickedPoint;
+   ivec2 ClickedPoint;
 
    CameraGL MainCamera;
    ShaderGL ObjectShader;
