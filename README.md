@@ -8,15 +8,6 @@ This is an example of using a compute shader.
 
 
 
-## Test Environment
-  * Windows 10
-  * Visual Studio 2017
-  * Surface Book 2
-  
-## Library Dependencies
-  * OpenCV
-  * OpenGL
-
 ## Keyboard Commands
   * **l key**: toggle light effects
   * **i key**: reset the main camera
