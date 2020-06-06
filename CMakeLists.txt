@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.8)
 
-project("OpenGL-Example")
+project("WaveSimulation")
 
 include(cmake/check-compiler.cmake)
 
@@ -25,7 +25,7 @@ else()
    include(cmake/add-libraries-linux.cmake)
 endif()
 
-add_executable(OpenGL-Example ${SOURCE_FILES})
+add_executable(WaveSimulation ${SOURCE_FILES})
 
 if(MSVC)
    include(cmake/target-link-libraries-windows.cmake)
@@ -33,4 +33,4 @@ else()
    include(cmake/target-link-libraries-linux.cmake)
 endif()
 
-target_include_directories(OpenGL-Example PUBLIC ${CMAKE_BINARY_DIR})
+target_include_directories(WaveSimulation PUBLIC ${CMAKE_BINARY_DIR})
