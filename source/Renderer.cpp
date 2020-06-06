@@ -323,7 +323,7 @@ void RendererGL::drawWaveObject()
          WaveObject->getDrawMode(), 
          WavePointNumSize.x * 2, 
          GL_UNSIGNED_INT, 
-         reinterpret_cast<GLvoid *>(j * WavePointNumSize.x * 2 * sizeof GLuint)
+         reinterpret_cast<GLvoid *>(j * WavePointNumSize.x * 2 * sizeof( GLuint ))
       );
    }
 }
