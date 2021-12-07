@@ -1,4 +1,4 @@
-#include "Light.h"
+#include "light.h"
 
 LightGL::LightGL() :
    TurnLightOn( true ), GlobalAmbientColor( 0.2f, 0.2f, 0.2f, 1.0f ), TotalLightNum( 0 )

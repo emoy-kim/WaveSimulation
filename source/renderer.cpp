@@ -1,20 +1,16 @@
-#include "Renderer.h"
+#include "renderer.h"
 
 RendererGL::RendererGL() : 
    Window( nullptr ), FrameWidth( 1920 ), FrameHeight( 1080 ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
-   WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 ), ClickedPoint( -1, -1 ),
-   MainCamera( std::make_unique<CameraGL>() ), ObjectShader( std::make_unique<ShaderGL>() ),
-   WaveObject( std::make_unique<ObjectGL>() ), Lights( std::make_unique<LightGL>() )
+   WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 ), ObjectShader( std::make_unique<ShaderGL>() ),
+   WaveObject( std::make_unique<ObjectGL>() )
 {
-   Renderer = this;
+   ClickedPoint = { -1, -1 };
+   Lights = std::make_unique<LightGL>();
+   MainCamera = std::make_unique<CameraGL>();
 
    initialize();
    printOpenGLInformation();
-}
-
-RendererGL::~RendererGL()
-{
-   glfwTerminate();
 }
 
 void RendererGL::printOpenGLInformation()
@@ -39,6 +35,7 @@ void RendererGL::initialize()
    glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
 
    Window = glfwCreateWindow( FrameWidth, FrameHeight, "Main Camera", nullptr, nullptr );
+   glfwSetWindowUserPointer( Window, this );
    glfwMakeContextCurrent( Window );
 
    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -55,33 +52,19 @@ void RendererGL::initialize()
 
    const std::string shader_directory_path = std::string(CMAKE_SOURCE_DIR) + "/shaders";
    ObjectShader->setShader(
-      std::string(shader_directory_path + "/BasicPipeline.vert").c_str(),
-      std::string(shader_directory_path + "/BasicPipeline.frag").c_str()
+      std::string(shader_directory_path + "/screen.vert").c_str(),
+      std::string(shader_directory_path + "/screen.frag").c_str()
    );
    ObjectShader->setComputeShaders( { 
-      std::string(shader_directory_path + "/Wave.comp").c_str(),
-      std::string(shader_directory_path + "/WaveNormal.comp").c_str()
+      std::string(shader_directory_path + "/wave.comp").c_str(),
+      std::string(shader_directory_path + "/wave_normal.comp").c_str()
    } );
-}
-
-void RendererGL::error(int error, const char* description) const
-{
-   puts( description );
-}
-
-void RendererGL::errorWrapper(int error, const char* description)
-{
-   Renderer->error( error, description );
 }
 
 void RendererGL::cleanup(GLFWwindow* window)
 {
-   glfwSetWindowShouldClose( window, GLFW_TRUE );
-}
-
-void RendererGL::cleanupWrapper(GLFWwindow* window)
-{
-   Renderer->cleanup( window );
+   auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
+   glfwSetWindowShouldClose( renderer->Window, GLFW_TRUE );
 }
 
 void RendererGL::keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -120,16 +103,11 @@ void RendererGL::keyboard(GLFWwindow* window, int key, int scancode, int action,
       } break;
       case GLFW_KEY_Q:
       case GLFW_KEY_ESCAPE:
-         cleanupWrapper( window );
+         cleanup( window );
          break;
       default:
          return;
    }
-}
-
-void RendererGL::keyboardWrapper(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-   Renderer->keyboard( window, key, scancode, action, mods );
 }
 
 void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
@@ -142,7 +120,8 @@ void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
       MainCamera->moveForward( -dy );
       MainCamera->rotateAroundWorldY( -dx );
 
-      if (glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS) {
+      auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
+      if (glfwGetMouseButton( renderer->Window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS) {
          MainCamera->pitch( -dy );
       }
 
@@ -151,18 +130,14 @@ void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
    }
 }
 
-void RendererGL::cursorWrapper(GLFWwindow* window, double xpos, double ypos)
-{
-   Renderer->cursor( window, xpos, ypos );
-}
-
 void RendererGL::mouse(GLFWwindow* window, int button, int action, int mods)
 {
    if (button == GLFW_MOUSE_BUTTON_LEFT) {
       const bool moving_state = action == GLFW_PRESS;
       if (moving_state) {
          double x, y;
-         glfwGetCursorPos( window, &x, &y );
+         auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
+         glfwGetCursorPos( renderer->Window, &x, &y );
          ClickedPoint.x = static_cast<int>(round( x ));
          ClickedPoint.y = static_cast<int>(round( y ));
       }
@@ -170,45 +145,29 @@ void RendererGL::mouse(GLFWwindow* window, int button, int action, int mods)
    }
 }
 
-void RendererGL::mouseWrapper(GLFWwindow* window, int button, int action, int mods)
-{
-   Renderer->mouse( window, button, action, mods );
-}
-
-void RendererGL::mousewheel(GLFWwindow* window, double xoffset, double yoffset) const
+void RendererGL::mousewheel(GLFWwindow* window, double xoffset, double yoffset)
 {
    if (yoffset >= 0.0) MainCamera->zoomIn();
    else MainCamera->zoomOut();
 }
 
-void RendererGL::mousewheelWrapper(GLFWwindow* window, double xoffset, double yoffset)
-{
-   Renderer->mousewheel( window, xoffset, yoffset );
-}
-
-void RendererGL::reshape(GLFWwindow* window, int width, int height) const
+void RendererGL::reshape(GLFWwindow* window, int width, int height)
 {
    MainCamera->updateWindowSize( width, height );
    glViewport( 0, 0, width, height );
 }
 
-void RendererGL::reshapeWrapper(GLFWwindow* window, int width, int height)
-{
-   Renderer->reshape( window, width, height );
-}
-
 void RendererGL::registerCallbacks() const
 {
-   glfwSetErrorCallback( errorWrapper );
-   glfwSetWindowCloseCallback( Window, cleanupWrapper );
-   glfwSetKeyCallback( Window, keyboardWrapper );
-   glfwSetCursorPosCallback( Window, cursorWrapper );
-   glfwSetMouseButtonCallback( Window, mouseWrapper );
-   glfwSetScrollCallback( Window, mousewheelWrapper );
-   glfwSetFramebufferSizeCallback( Window, reshapeWrapper );
+   glfwSetWindowCloseCallback( Window, cleanup );
+   glfwSetKeyCallback( Window, keyboard );
+   glfwSetCursorPosCallback( Window, cursor );
+   glfwSetMouseButtonCallback( Window, mouse );
+   glfwSetScrollCallback( Window, mousewheel );
+   glfwSetFramebufferSizeCallback( Window, reshape );
 }
 
-void RendererGL::setLights() const
+void RendererGL::setLights()
 {  
    glm::vec4 light_position(2.0f, 150.0f, 2.0f, 1.0f);
    glm::vec4 ambient_color(0.9f, 0.9f, 0.9f, 1.0f);
