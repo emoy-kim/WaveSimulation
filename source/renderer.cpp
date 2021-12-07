@@ -216,8 +216,8 @@ void RendererGL::setWaveObject()
 
          const float distance_squared = (x - mid_x) * (x - mid_x) + (y - mid_y) * (y - mid_y);
          if (distance_squared <= initial_radius_squared) {
-            const float theta = sqrt( initial_wave_factor * distance_squared );
-            wave_vertices.back().y = initial_wave_height * (cos( theta ) + 1.0f);
+            const float theta = std::sqrt( initial_wave_factor * distance_squared );
+            wave_vertices.back().y = initial_wave_height * (std::cos( theta ) + 1.0f);
          }
 
          wave_normals.emplace_back( 0.0f, 0.0f, 0.0f );
