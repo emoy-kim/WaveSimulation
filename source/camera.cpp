@@ -17,10 +17,11 @@ CameraGL::CameraGL(
    float near_plane,
    float far_plane
 ) : 
-   IsMoving( false ), Width( 0 ), Height( 0 ), FOV( fov ), InitFOV( fov ), NearPlane( near_plane ), FarPlane( far_plane ),
-   AspectRatio( 0.0f ), ZoomSensitivity( 1.0f ), MoveSensitivity( 0.05f ), RotationSensitivity( 0.005f ),  
-   InitCamPos( cam_position ), InitRefPos( view_reference_position ), InitUpVec( view_up_vector ), CamPos( cam_position ),
-   ViewMatrix( lookAt( InitCamPos, InitRefPos, InitUpVec ) ), ProjectionMatrix(glm::mat4(1.0f) )
+   IsMoving( false ), Width( 0 ), Height( 0 ), FOV( fov ), InitFOV( fov ), NearPlane( near_plane ),
+   FarPlane( far_plane ), AspectRatio( 0.0f ), ZoomSensitivity( 1.0f ), MoveSensitivity( 0.05f ),
+   RotationSensitivity( 0.005f ), InitCamPos( cam_position ), InitRefPos( view_reference_position ),
+   InitUpVec( view_up_vector ), CamPos( cam_position ), ViewMatrix( glm::lookAt( InitCamPos, InitRefPos, InitUpVec ) ),
+   ProjectionMatrix( glm::mat4(1.0f) )
 {
 }
 

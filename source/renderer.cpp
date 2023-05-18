@@ -113,8 +113,8 @@ void RendererGL::keyboard(GLFWwindow* window, int key, int scancode, int action,
 void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
 {
    if (MainCamera->getMovingState()) {
-      const auto x = static_cast<int>(round( xpos ));
-      const auto y = static_cast<int>(round( ypos ));
+      const auto x = static_cast<int>(std::round( xpos ));
+      const auto y = static_cast<int>(std::round( ypos ));
       const int dx = x - ClickedPoint.x;
       const int dy = y - ClickedPoint.y;
       MainCamera->moveForward( -dy );
@@ -138,8 +138,8 @@ void RendererGL::mouse(GLFWwindow* window, int button, int action, int mods)
          double x, y;
          auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
          glfwGetCursorPos( renderer->Window, &x, &y );
-         ClickedPoint.x = static_cast<int>(round( x ));
-         ClickedPoint.y = static_cast<int>(round( y ));
+         ClickedPoint.x = static_cast<int>(std::round( x ));
+         ClickedPoint.y = static_cast<int>(std::round( y ));
       }
       MainCamera->setMovingState( moving_state );
    }
@@ -256,12 +256,12 @@ void RendererGL::drawWaveObject()
    glUseProgram( ObjectShader->getComputeShaderProgram( 0 ) );
    glUniform1f( ObjectShader->getLocation( "WaveFactor" ), WaveFactor );
    
-   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
-   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
-   
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, WaveObject->getShaderStorageBuffer( WaveTargetIndex ) );
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, WaveObject->getShaderStorageBuffer( (WaveTargetIndex + 1) % 3 ) );
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, WaveObject->getShaderStorageBuffer( (WaveTargetIndex + 2) % 3 ) );
+   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
+   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
+
    WaveTargetIndex = (WaveTargetIndex + 1) % 3;
 
    glUseProgram( ObjectShader->getComputeShaderProgram( 1 ) );
