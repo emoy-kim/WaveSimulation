@@ -3,7 +3,7 @@
 #include "base.h"
 #include "camera.h"
 
-class ShaderGL
+class ShaderGL final
 {
 public:
    struct LightLocationSet
@@ -22,12 +22,12 @@ public:
       GLint World, View, Projection, ModelViewProjection;
       GLint MaterialEmission, MaterialAmbient, MaterialDiffuse, MaterialSpecular, MaterialSpecularExponent;
       std::map<GLint, GLint> Texture; // <binding point, texture id>
-      GLint UseTexture, UseLight, LightNum, GlobalAmbient;
+      GLint UseLight, LightNum, GlobalAmbient;
       std::vector<LightLocationSet> Lights;
 
       LocationSet() : World( 0 ), View( 0 ), Projection( 0 ), ModelViewProjection( 0 ), MaterialEmission( 0 ),
-      MaterialAmbient( 0 ), MaterialDiffuse( 0 ), MaterialSpecular( 0 ), MaterialSpecularExponent( 0 ),
-      UseTexture( 0 ), UseLight( 0 ), LightNum( 0 ), GlobalAmbient( 0 ) {}
+      MaterialAmbient( 0 ), MaterialDiffuse( 0 ), MaterialSpecular( 0 ), MaterialSpecularExponent( 0 ), UseLight( 0 ),
+      LightNum( 0 ), GlobalAmbient( 0 ) {}
    };
 
    ShaderGL();
@@ -40,13 +40,52 @@ public:
       const char* tessellation_control_shader_path = nullptr,
       const char* tessellation_evaluation_shader_path = nullptr
    );
-   void setComputeShaders(const std::vector<const char*>& compute_shader_paths);
-   void setUniformLocations(int light_num);
-   void addUniformLocation(const std::string& name);
-   void addUniformLocationToComputeShader(const std::string& name, int shader_index);
-   void transferBasicTransformationUniforms(const glm::mat4& to_world, const CameraGL* camera, bool use_texture = false) const;
+   void setComputeShaders(const char* compute_shader_path);
+   void setWaveUniformLocations();
+   void setWaveNormalUniformLocations();
+   void setSceneUniformLocations(int light_num);
+   void addUniformLocation(const std::string& name)
+   {
+      CustomLocations[name] = glGetUniformLocation( ShaderProgram, name.c_str() );
+   }
+   void transferBasicTransformationUniforms(const glm::mat4& to_world, const CameraGL* camera) const;
+   void uniform1i(const char* name, int value) const
+   {
+      glProgramUniform1i( ShaderProgram, CustomLocations.find( name )->second, value );
+   }
+   void uniform1f(const char* name, float value) const
+   {
+      glProgramUniform1f( ShaderProgram, CustomLocations.find( name )->second, value );
+   }
+   void uniform1fv(const char* name, int count, const float* value) const
+   {
+      glProgramUniform1fv( ShaderProgram, CustomLocations.find( name )->second, count, value );
+   }
+   void uniform2fv(const char* name, const glm::vec2& value) const
+   {
+      glProgramUniform2fv( ShaderProgram, CustomLocations.find( name )->second, 1, &value[0] );
+   }
+   void uniform2fv(const char* name, int count, const float* value) const
+   {
+      glProgramUniform2fv( ShaderProgram, CustomLocations.find( name )->second, count, value );
+   }
+   void uniform3fv(const char* name, const glm::vec3& value) const
+   {
+      glProgramUniform3fv( ShaderProgram, CustomLocations.find( name )->second, 1, &value[0] );
+   }
+   void uniform4fv(const char* name, const glm::vec4& value) const
+   {
+      glProgramUniform4fv( ShaderProgram, CustomLocations.find( name )->second, 1, &value[0] );
+   }
+   void uniformMat3fv(const char* name, const glm::mat3& value) const
+   {
+      glProgramUniformMatrix3fv( ShaderProgram, CustomLocations.find( name )->second, 1, GL_FALSE, &value[0][0] );
+   }
+   void uniformMat4fv(const char* name, const glm::mat4& value) const
+   {
+      glProgramUniformMatrix4fv( ShaderProgram, CustomLocations.find( name )->second, 1, GL_FALSE, &value[0][0] );
+   }
    [[nodiscard]] GLuint getShaderProgram() const { return ShaderProgram; }
-   [[nodiscard]] GLuint getComputeShaderProgram(int shader_index) const { return ComputeShaderPrograms[shader_index]; }
    [[nodiscard]] GLint getLocation(const std::string& name) const { return CustomLocations.find( name )->second; }
    [[nodiscard]] GLint getMaterialEmissionLocation() const { return Location.MaterialEmission; }
    [[nodiscard]] GLint getMaterialAmbientLocation() const { return Location.MaterialAmbient; }
@@ -97,7 +136,6 @@ protected:
    GLuint ShaderProgram;
    LocationSet Location;
    std::unordered_map<std::string, GLint> CustomLocations;
-   std::vector<GLuint> ComputeShaderPrograms;
 
    static void readShaderFile(std::string& shader_contents, const char* shader_path);
    [[nodiscard]] static std::string getShaderTypeString(GLenum shader_type);

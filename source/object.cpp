@@ -1,27 +1,24 @@
 #include "object.h"
 
 ObjectGL::ObjectGL() :
-   ImageBuffer( nullptr ), VAO( 0 ), VBO( 0 ), DrawMode( 0 ), VerticesCount( 0 ),
-   EmissionColor( 0.0f, 0.0f, 0.0f, 1.0f ),
-   AmbientReflectionColor( 0.2f, 0.2f, 0.2f, 1.0f ),
-   DiffuseReflectionColor( 0.8f, 0.8f, 0.8f, 1.0f ),
-   SpecularReflectionColor( 0.0f, 0.0f, 0.0f, 1.0f ), SpecularReflectionExponent( 0.0f )
+   VAO( 0 ), VBO( 0 ), IBO( 0 ), DrawMode( 0 ), VerticesCount( 0 ), WaveBuffers{},
+   EmissionColor( 0.0f, 0.0f, 0.0f, 1.0f ), AmbientReflectionColor( 0.2f, 0.2f, 0.2f, 1.0f ),
+   DiffuseReflectionColor( 0.8f, 0.8f, 0.8f, 1.0f ), SpecularReflectionColor( 0.0f, 0.0f, 0.0f, 1.0f ),
+   SpecularReflectionExponent( 0.0f ), WaveFactor( 10.0f )
 {
 }
 
 ObjectGL::~ObjectGL()
 {
-   if (VAO != 0) {
-      glDeleteVertexArrays( 1, &VAO );
-      glDeleteBuffers( 1, &VBO );
-   }
+   if (IBO != 0) glDeleteBuffers( 1, &IBO );
+   if (VBO != 0) glDeleteBuffers( 1, &VBO );
+   if (VAO != 0) glDeleteVertexArrays( 1, &VAO );
    for (const auto& texture_id : TextureID) {
       if (texture_id != 0) glDeleteTextures( 1, &texture_id );
    }
    for (const auto& buffer : CustomBuffers) {
       if (buffer.second != 0) glDeleteBuffers( 1, &buffer.second );
    }
-   delete [] ImageBuffer;
 }
 
 void ObjectGL::setEmissionColor(const glm::vec4& emission_color)
@@ -65,8 +62,8 @@ bool ObjectGL::prepareTexture2DUsingFreeImage(const std::string& file_path, bool
       texture_converted = n_bits_per_pixel == n_bits ? texture : FreeImage_ConvertTo32Bits( texture );
    }
 
-   const GLsizei width = FreeImage_GetWidth( texture_converted );
-   const GLsizei height = FreeImage_GetHeight( texture_converted );
+   const auto width = static_cast<GLsizei>(FreeImage_GetWidth( texture_converted ));
+   const auto height = static_cast<GLsizei>(FreeImage_GetHeight( texture_converted ));
    GLvoid* data = FreeImage_GetBits( texture_converted );
    glTextureStorage2D( TextureID.back(), 1, is_grayscale ? GL_R8 : GL_RGBA8, width, height );
    glTextureSubImage2D( TextureID.back(), 0, 0, 0, width, height, is_grayscale ? GL_RED : GL_BGRA, GL_UNSIGNED_BYTE, data );
@@ -101,11 +98,9 @@ void ObjectGL::addTexture(int width, int height, bool is_grayscale)
    GLuint texture_id = 0;
    glCreateTextures( GL_TEXTURE_2D, 1, &texture_id );
    glTextureStorage2D(
-      texture_id,
-      1,
+      texture_id, 1,
       is_grayscale ? GL_R8 : GL_RGBA8,
-      width,
-      height
+      width, height
    );
    glTextureParameteri( texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
    glTextureParameteri( texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
@@ -119,12 +114,8 @@ int ObjectGL::addTexture(const uint8_t* image_buffer, int width, int height, boo
 {
    addTexture( width, height, is_grayscale );
    glTextureSubImage2D(
-      TextureID.back(),
-      0,
-      0,
-      0,
-      width,
-      height,
+      TextureID.back(), 0, 0, 0,
+      width, height,
       is_grayscale ? GL_RED : GL_RGBA,
       GL_UNSIGNED_BYTE,
       image_buffer
@@ -157,6 +148,17 @@ void ObjectGL::prepareVertexBuffer(int n_bytes_per_vertex)
    glVertexArrayAttribFormat( VAO, VertexLoc, 3, GL_FLOAT, GL_FALSE, 0 );
    glEnableVertexArrayAttrib( VAO, VertexLoc );
    glVertexArrayAttribBinding( VAO, VertexLoc, 0 );
+}
+
+void ObjectGL::prepareIndexBuffer()
+{
+   assert( VAO != 0 );
+
+   if (IBO != 0) glDeleteBuffers( 1, &IBO );
+
+   glCreateBuffers( 1, &IBO );
+   glNamedBufferStorage( IBO, sizeof( GLuint ) * IndexBuffer.size(), IndexBuffer.data(), GL_DYNAMIC_STORAGE_BIT );
+   glVertexArrayElementBuffer( VAO, IBO );
 }
 
 void ObjectGL::getSquareObject(
@@ -297,93 +299,6 @@ void ObjectGL::setObject(
    addTexture( texture_file_path, is_grayscale );
 }
 
-bool ObjectGL::readObjectFile(
-   std::vector<glm::vec3>& vertices,
-   std::vector<glm::vec3>& normals, 
-   std::vector<glm::vec2>& textures, 
-   const std::string& file_path
-) const
-{
-   std::ifstream file(file_path);
-   if (!file.is_open()) {
-      std::cout << "The object file is not correct.\n";
-      return false;
-   }
-
-   std::vector<glm::vec3> vertex_buffer, normal_buffer;
-   std::vector<glm::vec2> texture_buffer;
-   std::vector<int> vertex_indices, normal_indices, texture_indices;
-   while (!file.eof()) {
-      std::string word;
-      file >> word;
-      
-      if (word == "v") {
-         glm::vec3 vertex;
-         file >> vertex.x >> vertex.y >> vertex.z;
-         vertex_buffer.emplace_back( vertex );
-      }
-      else if (word == "vt") {
-         glm::vec2 uv;
-         file >> uv.x >> uv.y;
-         texture_buffer.emplace_back( uv );
-      }
-      else if (word == "vn") {
-         glm::vec3 normal;
-         file >> normal.x >> normal.y >> normal.z;
-         normal_buffer.emplace_back( normal );
-      }
-      else if (word == "f") {
-         char c;
-         vertex_indices.emplace_back(); file >> vertex_indices.back(); file >> c;
-         texture_indices.emplace_back(); file >> texture_indices.back(); file >> c;
-         normal_indices.emplace_back(); file >> normal_indices.back();
-         vertex_indices.emplace_back(); file >> vertex_indices.back(); file >> c;
-         texture_indices.emplace_back(); file >> texture_indices.back(); file >> c;
-         normal_indices.emplace_back(); file >> normal_indices.back();
-         vertex_indices.emplace_back(); file >> vertex_indices.back(); file >> c;
-         texture_indices.emplace_back(); file >> texture_indices.back(); file >> c;
-         normal_indices.emplace_back(); file >> normal_indices.back();
-      }
-      else std::getline( file, word );
-   }
-
-   for (uint i = 0; i < vertex_indices.size(); ++i) {
-      vertices.emplace_back( vertex_buffer[vertex_indices[i] - 1] );
-      normals.emplace_back( normal_buffer[normal_indices[i] - 1] );
-      textures.emplace_back( texture_buffer[texture_indices[i] - 1] );
-   }
-   return true;
-}
-
-void ObjectGL::setObject(
-   GLenum draw_mode, 
-   const std::string& obj_file_path, 
-   const std::string& texture_file_name
-)
-{
-   DrawMode = draw_mode;
-   std::vector<glm::vec3> vertices, normals;
-   std::vector<glm::vec2> textures;
-   readObjectFile( vertices, normals, textures, obj_file_path );
-   
-   for (uint i = 0; i < vertices.size(); ++i) {
-      DataBuffer.push_back( vertices[i].x );
-      DataBuffer.push_back( vertices[i].y );
-      DataBuffer.push_back( vertices[i].z );
-      DataBuffer.push_back( normals[i].x );
-      DataBuffer.push_back( normals[i].y );
-      DataBuffer.push_back( normals[i].z );
-      DataBuffer.push_back( textures[i].x );
-      DataBuffer.push_back( textures[i].y );
-      VerticesCount++;
-   }
-   const int n_bytes_per_vertex = 8 * sizeof(GLfloat);
-   prepareVertexBuffer( n_bytes_per_vertex );
-   prepareNormal();
-   prepareTexture( true );
-   addTexture( texture_file_name );
-}
-
 void ObjectGL::setSquareObject(GLenum draw_mode, bool use_texture)
 {
    std::vector<glm::vec3> square_vertices, square_normals;
@@ -405,12 +320,70 @@ void ObjectGL::setSquareObject(
    setObject( draw_mode, square_vertices, square_normals, square_textures, texture_file_path, is_grayscale );
 }
 
-void ObjectGL::setElementBuffer(std::vector<GLuint>& indices) const
+void ObjectGL::setWaveObject(const glm::ivec2& wave_point_num_size, const glm::ivec2& wave_grid_size)
 {
-   GLuint obj_ibo;
-   glCreateBuffers( 1, &obj_ibo );
-   glNamedBufferStorage( obj_ibo, sizeof( GLuint ) * indices.size(), indices.data(), GL_DYNAMIC_STORAGE_BIT );
-   glVertexArrayElementBuffer( VAO, obj_ibo );
+   const float ds = 1.0f / static_cast<float>(wave_point_num_size.x - 1);
+   const float dt = 1.0f / static_cast<float>(wave_point_num_size.y - 1);
+   const float dx = static_cast<float>(wave_grid_size.x) * ds;
+   const float dy = static_cast<float>(wave_grid_size.y) * dt;
+   const auto mid_x = static_cast<float>(wave_point_num_size.x >> 1);
+   const auto mid_y = static_cast<float>(wave_point_num_size.y >> 1);
+
+   constexpr float initial_radius_squared = 81.0f;
+   constexpr float initial_wave_factor = glm::pi<float>() / initial_radius_squared;
+   constexpr float initial_wave_height = 0.5f;
+
+   std::vector<glm::vec3> wave_vertices, wave_normals;
+   std::vector<glm::vec2> wave_textures;
+   for (int j = 0; j < wave_point_num_size.y; ++j) {
+      const auto y = static_cast<float>(j);
+      for (int i = 0; i < wave_point_num_size.x; ++i) {
+         const auto x = static_cast<float>(i);
+         wave_vertices.emplace_back( x * dx, 0.0f, y * dy );
+
+         const float distance_squared = (x - mid_x) * (x - mid_x) + (y - mid_y) * (y - mid_y);
+         if (distance_squared <= initial_radius_squared) {
+            const float theta = std::sqrt( initial_wave_factor * distance_squared );
+            wave_vertices.back().y = initial_wave_height * (std::cos( theta ) + 1.0f);
+         }
+
+         wave_normals.emplace_back( 0.0f, 0.0f, 0.0f );
+         wave_textures.emplace_back( x * ds, y * dt );
+      }
+   }
+
+   const std::string sample_directory_path = std::string(CMAKE_SOURCE_DIR) + "/samples";
+   setObject(
+      GL_TRIANGLE_STRIP,
+      wave_vertices,
+      wave_normals,
+      wave_textures,
+      std::string(sample_directory_path + "/water.png")
+   );
+   addCustomBufferObject<GLfloat>( "wave_buffer1", static_cast<int>(DataBuffer.size()) );
+   addCustomBufferObject<GLfloat>( "wave_buffer2", static_cast<int>(DataBuffer.size()) );
+   WaveBuffers[0] = VBO;
+   WaveBuffers[1] = getCustomBufferID( "wave_buffer1" );
+   WaveBuffers[2] = getCustomBufferID( "wave_buffer2" );
+   glNamedBufferSubData(
+      WaveBuffers[1], 0,
+      static_cast<GLsizei>(DataBuffer.size() * sizeof( GLfloat )),
+      DataBuffer.data()
+   );
+
+   IndexBuffer.clear();
+   for (int j = 0; j < wave_point_num_size.y - 1; ++j) {
+      for (int i = 0; i < wave_point_num_size.x; ++i) {
+         IndexBuffer.emplace_back( (j + 1) * wave_point_num_size.x + i );
+         IndexBuffer.emplace_back( j * wave_point_num_size.x + i );
+      }
+   }
+   prepareIndexBuffer();
+
+   setDiffuseReflectionColor( { 0.0f, 0.47f, 0.75f, 1.0f } );
+
+   constexpr float delta_time = 0.0009f;
+   WaveFactor = WaveFactor * WaveFactor * delta_time * delta_time / dx;
 }
 
 void ObjectGL::transferUniformsToShader(const ShaderGL* shader)
@@ -437,7 +410,7 @@ void ObjectGL::updateDataBuffer(const std::vector<glm::vec3>& vertices, const st
       DataBuffer.push_back( normals[i].z );
       VerticesCount++;
    }
-   glNamedBufferSubData( VBO, 0, sizeof( GLfloat ) * DataBuffer.size(), DataBuffer.data() );
+   glNamedBufferSubData( VBO, 0, static_cast<GLsizeiptr>(sizeof( GLfloat ) * DataBuffer.size()), DataBuffer.data() );
 }
 
 void ObjectGL::updateDataBuffer(
@@ -461,7 +434,7 @@ void ObjectGL::updateDataBuffer(
       DataBuffer.push_back( textures[i].y );
       VerticesCount++;
    }
-   glNamedBufferSubData( VBO, 0, sizeof( GLfloat ) * DataBuffer.size(), DataBuffer.data() );
+   glNamedBufferSubData( VBO, 0, static_cast<GLsizeiptr>(sizeof( GLfloat ) * DataBuffer.size()), DataBuffer.data() );
 }
 
 void ObjectGL::replaceVertices(
@@ -482,7 +455,7 @@ void ObjectGL::replaceVertices(
       DataBuffer[i * step + 2] = vertices[i].z;
       VerticesCount++;
    }
-   glNamedBufferSubData( VBO, 0, sizeof( GLfloat ) * VerticesCount * step, DataBuffer.data() );
+   glNamedBufferSubData( VBO, 0, static_cast<GLsizeiptr>(sizeof( GLfloat ) * VerticesCount * step), DataBuffer.data() );
 }
 
 void ObjectGL::replaceVertices(
@@ -503,19 +476,5 @@ void ObjectGL::replaceVertices(
       DataBuffer[j * step + 2] = vertices[i + 2];
       VerticesCount++;
    }
-   glNamedBufferSubData( VBO, 0, sizeof( GLfloat ) * VerticesCount * step, DataBuffer.data() );
-}
-
-void ObjectGL::prepareShaderStorageBuffer()
-{
-   ShaderStorageBufferObjects.resize( 3 );
-   ShaderStorageBufferObjects[0] = VBO;
-   glCreateBuffers( 1, &ShaderStorageBufferObjects[1] );
-   glCreateBuffers( 1, &ShaderStorageBufferObjects[2] );
-
-   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, ShaderStorageBufferObjects[1] );
-   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( GLfloat ) * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
-   
-   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, ShaderStorageBufferObjects[2] );
-   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( GLfloat ) * DataBuffer.size(), nullptr, GL_DYNAMIC_DRAW );
+   glNamedBufferSubData( VBO, 0, static_cast<GLsizeiptr>(sizeof( GLfloat ) * VerticesCount * step), DataBuffer.data() );
 }

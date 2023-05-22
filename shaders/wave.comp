@@ -1,45 +1,31 @@
 #version 430
 
-uniform float WaveFactor;
-
-layout(local_size_x = 10, local_size_y = 10) in;
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 struct Attributes
 {
    float x, y, z, nx, ny, nz, s, t;
 };
 
-layout(binding = 0, std430) buffer PrevPoints {
-   Attributes Pn_prev[];
-};
+layout(binding = 0, std430) buffer PrevPoints { Attributes Pn_prev[]; };
+layout(binding = 1, std430) buffer CurrPoints { Attributes Pn[]; };
+layout(binding = 2, std430) buffer NextPoints { Attributes Pn_next[]; };
 
-layout(binding = 1, std430) buffer CurrPoints {
-   Attributes Pn[];
-};
-
-layout(binding = 2, std430) buffer NextPoints {
-   Attributes Pn_next[];
-};
+uniform float WaveFactor;
+uniform ivec2 WavePointNumSize;
 
 void main() 
 {
-   uvec3 points = gl_NumWorkGroups * gl_WorkGroupSize;
-   uint index = gl_GlobalInvocationID.y * points.x + gl_GlobalInvocationID.x;
+   int x = int(gl_GlobalInvocationID.x);
+   int y = int(gl_GlobalInvocationID.y);
+   if (x >= WavePointNumSize.x || y >= WavePointNumSize.y) return;
 
+   int index = y * WavePointNumSize.x + x;
    float updated_height = 2.0f * Pn[index].y - Pn_prev[index].y;
-   
-   if (0 < gl_GlobalInvocationID.x) {
-      updated_height += WaveFactor * Pn[index - 1].y;
-   }
-   if (gl_GlobalInvocationID.x < points.x - 1) {
-      updated_height += WaveFactor * Pn[index + 1].y;
-   }
-   if (0 < gl_GlobalInvocationID.y) {
-      updated_height += WaveFactor * Pn[index - points.x].y;
-   }
-   if (gl_GlobalInvocationID.y < points.y - 1) {
-      updated_height += WaveFactor * Pn[index + points.x].y;
-   }
+   if (x > 0) updated_height += WaveFactor * Pn[index - 1].y;
+   if (x < WavePointNumSize.x - 1) updated_height += WaveFactor * Pn[index + 1].y;
+   if (y > 0) updated_height += WaveFactor * Pn[index - WavePointNumSize.x].y;
+   if (y < WavePointNumSize.y - 1) updated_height += WaveFactor * Pn[index + WavePointNumSize.x].y;
 
    updated_height /= (1.0f + 4.0f * WaveFactor);
    Pn_next[index].x = Pn[index].x;

@@ -16,32 +16,43 @@
 class RendererGL
 {
 public:
+   RendererGL();
+   ~RendererGL() = default;
+
    RendererGL(const RendererGL&) = delete;
    RendererGL(const RendererGL&&) = delete;
    RendererGL& operator=(const RendererGL&) = delete;
    RendererGL& operator=(const RendererGL&&) = delete;
 
-
-   RendererGL();
-   ~RendererGL() = default;
-
    void play();
 
 private:
-   inline static glm::ivec2 ClickedPoint;
-   inline static std::unique_ptr<LightGL> Lights;
-   inline static std::unique_ptr<CameraGL> MainCamera;
+   inline static RendererGL* Renderer = nullptr;
 
    GLFWwindow* Window;
    int FrameWidth;
    int FrameHeight;
-   uint WaveTargetIndex;
-   float WaveFactor;
+   int ActiveLightIndex;
+   int WaveTargetIndex;
    glm::ivec2 WavePointNumSize;
    glm::ivec2 WaveGridSize;
+   glm::ivec2 ClickedPoint;
+   std::unique_ptr<CameraGL> MainCamera;
    std::unique_ptr<ShaderGL> ObjectShader;
+   std::unique_ptr<ShaderGL> WaveShader;
+   std::unique_ptr<ShaderGL> WaveNormalShader;
    std::unique_ptr<ObjectGL> WaveObject;
- 
+   std::unique_ptr<LightGL> Lights;
+
+   // 16 and 32 do well, anything in between or below is bad.
+   // 32 seems to do well on laptop/desktop Windows Intel and on NVidia/AMD as well.
+   // further hardware-specific tuning might be needed for optimal performance.
+   static constexpr int ThreadGroupSize = 32;
+   [[nodiscard]] static int getGroupSize(int size)
+   {
+      return (size + ThreadGroupSize - 1) / ThreadGroupSize;
+   }
+
    void registerCallbacks() const;
    void initialize();
 
@@ -52,10 +63,8 @@ private:
    static void cursor(GLFWwindow* window, double xpos, double ypos);
    static void mouse(GLFWwindow* window, int button, int action, int mods);
    static void mousewheel(GLFWwindow* window, double xoffset, double yoffset);
-   static void reshape(GLFWwindow* window, int width, int height);
 
-   static void setLights();
-   void setWaveObject();
+   void setLights();
    void drawWaveObject();
    void render();
 };

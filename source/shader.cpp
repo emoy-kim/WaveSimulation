@@ -31,6 +31,9 @@ std::string ShaderGL::getShaderTypeString(GLenum shader_type)
       case GL_VERTEX_SHADER: return "Vertex Shader";
       case GL_FRAGMENT_SHADER: return "Fragment Shader";
       case GL_GEOMETRY_SHADER: return "Geometry Shader";
+      case GL_TESS_CONTROL_SHADER: return "Tessellation Control Shader";
+      case GL_TESS_EVALUATION_SHADER: return "Tessellation Evaluation Shader";
+      case GL_COMPUTE_SHADER: return "Compute Shader";
       default: return "";
    }
 }
@@ -99,17 +102,13 @@ void ShaderGL::setShader(
    if (tessellation_evaluation_shader != 0) glDeleteShader( tessellation_evaluation_shader );
 }
 
-void ShaderGL::setComputeShaders(const std::vector<const char*>& compute_shader_paths)
+void ShaderGL::setComputeShaders(const char* compute_shader_path)
 {
-   ComputeShaderPrograms.clear();
-   ComputeShaderPrograms.resize( compute_shader_paths.size() );
-   for (size_t i = 0; i < ComputeShaderPrograms.size(); ++i) {
-      const GLuint compute_shader = getCompiledShader( GL_COMPUTE_SHADER, compute_shader_paths[i] );
-      ComputeShaderPrograms[i] = glCreateProgram();
-      glAttachShader( ComputeShaderPrograms[i], compute_shader );
-      glLinkProgram( ComputeShaderPrograms[i] );
-      glDeleteShader( compute_shader );
-   }
+   const GLuint compute_shader = getCompiledShader( GL_COMPUTE_SHADER, compute_shader_path );
+   ShaderProgram = glCreateProgram();
+   glAttachShader( ShaderProgram, compute_shader );
+   glLinkProgram( ShaderProgram );
+   glDeleteShader( compute_shader );
 }
 
 void ShaderGL::setBasicTransformationUniforms()
@@ -120,7 +119,18 @@ void ShaderGL::setBasicTransformationUniforms()
    Location.ModelViewProjection = glGetUniformLocation( ShaderProgram, "ModelViewProjectionMatrix" );
 }
 
-void ShaderGL::setUniformLocations(int light_num)
+void ShaderGL::setWaveUniformLocations()
+{
+   addUniformLocation( "WaveFactor" );
+   addUniformLocation( "WavePointNumSize" );
+}
+
+void ShaderGL::setWaveNormalUniformLocations()
+{
+   addUniformLocation( "WavePointNumSize" );
+}
+
+void ShaderGL::setSceneUniformLocations(int light_num)
 {
    setBasicTransformationUniforms();
 
@@ -131,7 +141,6 @@ void ShaderGL::setUniformLocations(int light_num)
    Location.MaterialSpecularExponent = glGetUniformLocation( ShaderProgram, "Material.SpecularExponent" );
 
    Location.Texture[0] = glGetUniformLocation( ShaderProgram, "BaseTexture" );
-   Location.UseTexture = glGetUniformLocation( ShaderProgram, "UseTexture" );
 
    Location.UseLight = glGetUniformLocation( ShaderProgram, "UseLight" );
    Location.LightNum = glGetUniformLocation( ShaderProgram, "LightNum" );
@@ -149,19 +158,12 @@ void ShaderGL::setUniformLocations(int light_num)
       Location.Lights[i].SpotlightCutoffAngle = glGetUniformLocation( ShaderProgram, std::string("Lights[" + std::to_string( i ) + "].SpotlightCutoffAngle").c_str() );
       Location.Lights[i].LightAttenuationFactors = glGetUniformLocation( ShaderProgram, std::string("Lights[" + std::to_string( i ) + "].AttenuationFactors").c_str() );
    }
+
+   addUniformLocation( "UseTexture" );
+   addUniformLocation( "LightIndex" );
 }
 
-void ShaderGL::addUniformLocation(const std::string& name)
-{
-   CustomLocations[name] = glGetUniformLocation( ShaderProgram, name.c_str() );
-}
-
-void ShaderGL::addUniformLocationToComputeShader(const std::string& name, int shader_index)
-{
-   CustomLocations[name] = glGetUniformLocation( ComputeShaderPrograms[shader_index], name.c_str() );
-}
-
-void ShaderGL::transferBasicTransformationUniforms(const glm::mat4& to_world, const CameraGL* camera, bool use_texture) const
+void ShaderGL::transferBasicTransformationUniforms(const glm::mat4& to_world, const CameraGL* camera) const
 {
    const glm::mat4 view = camera->getViewMatrix();
    const glm::mat4 projection = camera->getProjectionMatrix();
@@ -174,5 +176,4 @@ void ShaderGL::transferBasicTransformationUniforms(const glm::mat4& to_world, co
    for (const auto& texture : Location.Texture) {
       glUniform1i( texture.second, texture.first );
    }
-   glUniform1i( Location.UseTexture, use_texture ? 1 : 0 );
 }

@@ -1,13 +1,13 @@
 #include "renderer.h"
 
 RendererGL::RendererGL() : 
-   Window( nullptr ), FrameWidth( 1920 ), FrameHeight( 1080 ), WaveTargetIndex( 0 ), WaveFactor( 5.0f ),
-   WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 ), ObjectShader( std::make_unique<ShaderGL>() ),
-   WaveObject( std::make_unique<ObjectGL>() )
+   Window( nullptr ), FrameWidth( 1920 ), FrameHeight( 1080 ), ActiveLightIndex( 0 ), WaveTargetIndex( 0 ),
+   WavePointNumSize( 100, 100 ), WaveGridSize( 5, 5 ), ClickedPoint( -1, -1 ),
+   MainCamera( std::make_unique<CameraGL>() ), ObjectShader( std::make_unique<ShaderGL>() ),
+   WaveShader( std::make_unique<ShaderGL>() ), WaveNormalShader( std::make_unique<ShaderGL>() ),
+   WaveObject( std::make_unique<ObjectGL>() ), Lights( std::make_unique<LightGL>() )
 {
-   ClickedPoint = { -1, -1 };
-   Lights = std::make_unique<LightGL>();
-   MainCamera = std::make_unique<CameraGL>();
+   Renderer = this;
 
    initialize();
    printOpenGLInformation();
@@ -55,10 +55,8 @@ void RendererGL::initialize()
       std::string(shader_directory_path + "/screen.vert").c_str(),
       std::string(shader_directory_path + "/screen.frag").c_str()
    );
-   ObjectShader->setComputeShaders( { 
-      std::string(shader_directory_path + "/wave.comp").c_str(),
-      std::string(shader_directory_path + "/wave_normal.comp").c_str()
-   } );
+   WaveShader->setComputeShaders( std::string(shader_directory_path + "/wave.comp").c_str() );
+   WaveNormalShader->setComputeShaders( std::string(shader_directory_path + "/wave_normal.comp").c_str() );
 }
 
 void RendererGL::cleanup(GLFWwindow* window)
@@ -72,33 +70,12 @@ void RendererGL::keyboard(GLFWwindow* window, int key, int scancode, int action,
    if (action != GLFW_PRESS) return;
 
    switch (key) {
-      case GLFW_KEY_UP:
-         MainCamera->moveForward();
-         break;
-      case GLFW_KEY_DOWN:
-         MainCamera->moveBackward();
-         break;
-      case GLFW_KEY_LEFT:
-         MainCamera->moveLeft();
-         break;
-      case GLFW_KEY_RIGHT:
-         MainCamera->moveRight();
-         break;
-      case GLFW_KEY_W:
-         MainCamera->moveUp();
-         break;
-      case GLFW_KEY_S:
-         MainCamera->moveDown();
-         break;
-      case GLFW_KEY_I:
-         MainCamera->resetCamera();
-         break;
       case GLFW_KEY_L:
-         Lights->toggleLightSwitch();
-         std::cout << "Light Turned " << (Lights->isLightOn() ? "On!\n" : "Off!\n");
+         Renderer->Lights->toggleLightSwitch();
+         std::cout << "Light Turned " << (Renderer->Lights->isLightOn() ? "On!\n" : "Off!\n");
          break;
       case GLFW_KEY_P: {
-         const glm::vec3 pos = MainCamera->getCameraPosition();
+         const glm::vec3 pos = Renderer->MainCamera->getCameraPosition();
          std::cout << "Camera Position: " << pos.x << ", " << pos.y << ", " << pos.z << "\n";
       } break;
       case GLFW_KEY_Q:
@@ -112,21 +89,21 @@ void RendererGL::keyboard(GLFWwindow* window, int key, int scancode, int action,
 
 void RendererGL::cursor(GLFWwindow* window, double xpos, double ypos)
 {
-   if (MainCamera->getMovingState()) {
+   if (Renderer->MainCamera->getMovingState()) {
       const auto x = static_cast<int>(std::round( xpos ));
       const auto y = static_cast<int>(std::round( ypos ));
-      const int dx = x - ClickedPoint.x;
-      const int dy = y - ClickedPoint.y;
-      MainCamera->moveForward( -dy );
-      MainCamera->rotateAroundWorldY( -dx );
+      const int dx = x - Renderer->ClickedPoint.x;
+      const int dy = y - Renderer->ClickedPoint.y;
+      Renderer->MainCamera->moveForward( -dy );
+      Renderer->MainCamera->rotateAroundWorldY( -dx );
 
       auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
       if (glfwGetMouseButton( renderer->Window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS) {
-         MainCamera->pitch( -dy );
+         Renderer->MainCamera->pitch( -dy );
       }
 
-      ClickedPoint.x = x;
-      ClickedPoint.y = y;
+      Renderer->ClickedPoint.x = x;
+      Renderer->ClickedPoint.y = y;
    }
 }
 
@@ -138,23 +115,17 @@ void RendererGL::mouse(GLFWwindow* window, int button, int action, int mods)
          double x, y;
          auto renderer = reinterpret_cast<RendererGL*>(glfwGetWindowUserPointer( window ));
          glfwGetCursorPos( renderer->Window, &x, &y );
-         ClickedPoint.x = static_cast<int>(std::round( x ));
-         ClickedPoint.y = static_cast<int>(std::round( y ));
+         Renderer->ClickedPoint.x = static_cast<int>(std::round( x ));
+         Renderer->ClickedPoint.y = static_cast<int>(std::round( y ));
       }
-      MainCamera->setMovingState( moving_state );
+      Renderer->MainCamera->setMovingState( moving_state );
    }
 }
 
 void RendererGL::mousewheel(GLFWwindow* window, double xoffset, double yoffset)
 {
-   if (yoffset >= 0.0) MainCamera->zoomIn();
-   else MainCamera->zoomOut();
-}
-
-void RendererGL::reshape(GLFWwindow* window, int width, int height)
-{
-   MainCamera->updateWindowSize( width, height );
-   glViewport( 0, 0, width, height );
+   if (yoffset >= 0.0) Renderer->MainCamera->zoomIn();
+   else Renderer->MainCamera->zoomOut();
 }
 
 void RendererGL::registerCallbacks() const
@@ -164,117 +135,42 @@ void RendererGL::registerCallbacks() const
    glfwSetCursorPosCallback( Window, cursor );
    glfwSetMouseButtonCallback( Window, mouse );
    glfwSetScrollCallback( Window, mousewheel );
-   glfwSetFramebufferSizeCallback( Window, reshape );
 }
 
 void RendererGL::setLights()
 {  
-   glm::vec4 light_position(2.0f, 150.0f, 2.0f, 1.0f);
-   glm::vec4 ambient_color(0.9f, 0.9f, 0.9f, 1.0f);
-   glm::vec4 diffuse_color(0.9f, 0.9f, 0.9f, 1.0f);
-   glm::vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
+   const glm::vec4 light_position(50.0f, 150.0f, 50.0f, 1.0f);
+   const glm::vec4 ambient_color(0.9f, 0.9f, 0.9f, 1.0f);
+   const glm::vec4 diffuse_color(0.9f, 0.9f, 0.9f, 1.0f);
+   const glm::vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
    Lights->addLight( light_position, ambient_color, diffuse_color, specular_color );
-
-   light_position = glm::vec4(2.5f, 100.0f, 2.5f, 1.0f);
-   ambient_color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-   diffuse_color = glm::vec4(0.0f, 0.47f, 0.75f, 1.0f);
-   specular_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-   glm::vec3 spotlight_direction(0.0f, -1.0f, 0.0f);
-   float spotlight_exponent = 128;
-   float spotlight_cutoff_angle_in_degree = 7.0f;
-   Lights->addLight( 
-      light_position, 
-      ambient_color, 
-      diffuse_color, 
-      specular_color,
-      spotlight_direction,
-      spotlight_exponent,
-      spotlight_cutoff_angle_in_degree
-   );  
-}
-
-void RendererGL::setWaveObject()
-{
-   const float ds = 1.0f / static_cast<float>(WavePointNumSize.x - 1);
-   const float dt = 1.0f / static_cast<float>(WavePointNumSize.y - 1);
-   const float dx = static_cast<float>(WaveGridSize.x) * ds;
-   const float dy = static_cast<float>(WaveGridSize.y) * dt;
-   const auto mid_x = static_cast<float>(WavePointNumSize.x >> 1);
-   const auto mid_y = static_cast<float>(WavePointNumSize.y >> 1);
-   
-   const float initial_radius_squared = 81.0f;
-   const float initial_wave_factor = glm::pi<float>() / initial_radius_squared;
-   const float initial_wave_height = 0.5f;
-
-   std::vector<glm::vec3> wave_vertices, wave_normals;
-   std::vector<glm::vec2> wave_textures;
-   for (int j = 0; j < WavePointNumSize.y; ++j) {
-      const auto y = static_cast<float>(j);
-      for (int i = 0; i < WavePointNumSize.x; ++i) {
-         const auto x = static_cast<float>(i);   
-         wave_vertices.emplace_back( x * dx, 0.0f, y * dy );
-
-         const float distance_squared = (x - mid_x) * (x - mid_x) + (y - mid_y) * (y - mid_y);
-         if (distance_squared <= initial_radius_squared) {
-            const float theta = std::sqrt( initial_wave_factor * distance_squared );
-            wave_vertices.back().y = initial_wave_height * (std::cos( theta ) + 1.0f);
-         }
-
-         wave_normals.emplace_back( 0.0f, 0.0f, 0.0f );
-         wave_textures.emplace_back( x * ds, y * dt );
-      }
-   }
-
-   const std::string sample_directory_path = std::string(CMAKE_SOURCE_DIR) + "/samples";
-   WaveObject->setObject( 
-      GL_TRIANGLE_STRIP, 
-      wave_vertices, 
-      wave_normals, 
-      wave_textures, 
-      std::string(sample_directory_path + "/water.png")
-   );
-   WaveObject->prepareShaderStorageBuffer();
-   
-   std::vector<GLuint> indices;
-   for (int j = 0; j < WavePointNumSize.y - 1; ++j) {
-      for (int i = 0; i < WavePointNumSize.x; ++i) {
-         indices.emplace_back( (j + 1) * WavePointNumSize.x + i );
-         indices.emplace_back( j * WavePointNumSize.x + i );
-      }
-   }
-   WaveObject->setElementBuffer( indices );
-
-   const glm::vec4 diffuse_color = { 0.0f, 0.47f, 0.75f, 1.0f };
-   WaveObject->setDiffuseReflectionColor( diffuse_color );
-
-   const float delta_time = 0.0009f;
-   WaveFactor = WaveFactor * WaveFactor * delta_time * delta_time / dx;
 }
 
 void RendererGL::drawWaveObject()
 {
-   glUseProgram( ObjectShader->getComputeShaderProgram( 0 ) );
-   glUniform1f( ObjectShader->getLocation( "WaveFactor" ), WaveFactor );
+   glUseProgram( WaveShader->getShaderProgram() );
+   glUniform1f( WaveShader->getLocation( "WaveFactor" ), WaveObject->getWaveFactor() );
+   glUniform2iv( WaveShader->getLocation( "WavePointNumSize" ), 1, &WavePointNumSize[0] );
    
-   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, WaveObject->getShaderStorageBuffer( WaveTargetIndex ) );
-   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, WaveObject->getShaderStorageBuffer( (WaveTargetIndex + 1) % 3 ) );
-   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, WaveObject->getShaderStorageBuffer( (WaveTargetIndex + 2) % 3 ) );
-   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, WaveObject->getWaveBuffer( WaveTargetIndex ) );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, WaveObject->getWaveBuffer( (WaveTargetIndex + 1) % 3 ) );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, WaveObject->getWaveBuffer( (WaveTargetIndex + 2) % 3 ) );
+   glDispatchCompute( getGroupSize( WavePointNumSize.x ), getGroupSize( WavePointNumSize.y ), 1 );
+   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
+
+   glUseProgram( WaveNormalShader->getShaderProgram() );
+   glUniform2iv( WaveNormalShader->getLocation( "WavePointNumSize" ), 1, &WavePointNumSize[0] );
+   glDispatchCompute( getGroupSize( WavePointNumSize.x ), getGroupSize( WavePointNumSize.y ), 1 );
    glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
 
    WaveTargetIndex = (WaveTargetIndex + 1) % 3;
 
-   glUseProgram( ObjectShader->getComputeShaderProgram( 1 ) );
-
-   glDispatchCompute( WavePointNumSize.x / 10, WavePointNumSize.y / 10, 1 );
-   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
-
    glUseProgram( ObjectShader->getShaderProgram() );
-
-   ObjectShader->transferBasicTransformationUniforms( glm::mat4(1.0f), MainCamera.get(), true );
+   ObjectShader->transferBasicTransformationUniforms( glm::mat4(1.0f), MainCamera.get() );
    WaveObject->transferUniformsToShader( ObjectShader.get() );
    Lights->transferUniformsToShader( ObjectShader.get() );
-
+   glUniform1i( ObjectShader->getLocation( "LightIndex" ), ActiveLightIndex );
+   glUniform1i( ObjectShader->getLocation( "UseTexture" ), 1 );
    glBindTextureUnit( 0, WaveObject->getTextureID( 0 ) );
    glBindVertexArray( WaveObject->getVAO() );
    for (int j = 0; j < WavePointNumSize.y - 1; ++j) {
@@ -302,9 +198,10 @@ void RendererGL::play()
    if (glfwWindowShouldClose( Window )) initialize();
 
    setLights();
-   setWaveObject();
-   ObjectShader->setUniformLocations( Lights->getTotalLightNum() );
-   ObjectShader->addUniformLocationToComputeShader( "WaveFactor", 0 );
+   WaveObject->setWaveObject( WavePointNumSize, WaveGridSize );
+   WaveShader->setWaveUniformLocations();
+   WaveNormalShader->setWaveNormalUniformLocations();
+   ObjectShader->setSceneUniformLocations( Lights->getTotalLightNum() );
 
    while (!glfwWindowShouldClose( Window )) {
       render();
