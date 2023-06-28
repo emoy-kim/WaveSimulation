@@ -139,7 +139,7 @@ void RendererGL::registerCallbacks() const
 
 void RendererGL::setLights()
 {  
-   const glm::vec4 light_position(50.0f, 150.0f, 50.0f, 1.0f);
+   const glm::vec4 light_position(50.0f, 500.0f, 50.0f, 1.0f);
    const glm::vec4 ambient_color(0.9f, 0.9f, 0.9f, 1.0f);
    const glm::vec4 diffuse_color(0.9f, 0.9f, 0.9f, 1.0f);
    const glm::vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
